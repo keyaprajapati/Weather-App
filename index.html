@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraWeather - Elegant Real-time Weather Insights</title>
+    <!-- Google Fonts (Inter & Playfair Display for editorial elegant touch) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght=0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons for high quality modern outline icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    },
+                    backdropBlur: {
+                        xs: '2px',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="weather-bg-transition min-h-screen font-sans text-slate-100 flex flex-col justify-between overflow-x-hidden bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
+
+    <!-- Custom Toast Notification Box -->
+    <div id="toastNotification" class="fixed top-6 right-6 z-50 transform translate-y-[-100px] opacity-0 transition-all duration-500 ease-out max-w-sm w-full">
+        <div class="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 shadow-2xl flex items-center space-x-3">
+            <div id="toastIcon" class="p-2 rounded-lg bg-indigo-500/20 text-indigo-300">
+                <i data-lucide="info" class="w-5 h-5"></i>
+            </div>
+            <div class="flex-1">
+                <p id="toastMessage" class="text-sm font-medium text-white">Searching Vadodara...</p>
+            </div>
+            <button onclick="closeToast()" class="text-white/40 hover:text-white transition-colors">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Dynamic Canvas Background (Renders Interactive Weather Effects) -->
+    <canvas id="weatherCanvas" class="fixed top-0 left-0 w-full h-full pointer-events-none z-0 opacity-60"></canvas>
+
+    <header class="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-2">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/20 shadow-lg shadow-white/5">
+                    <i data-lucide="cloud-sun" class="w-6 h-6 text-amber-400"></i>
+                </div>
+                <div>
+                    <h1 class="font-serif text-2xl font-semibold tracking-wide bg-gradient-to-r from-white via-slate-100 to-indigo-200 bg-clip-text text-transparent">AuraWeather</h1>
+                    <p class="text-[10px] tracking-wider uppercase text-slate-400 font-semibold">Premium Climate Intelligence</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2 bg-white/5 border border-white/10 p-1 rounded-full text-xs overflow-x-auto max-w-full">
+                <button onclick="fetchWeather('Vadodara')" class="px-3 py-1.5 rounded-full transition-all hover:bg-white/10 text-slate-200 hover:text-white whitespace-nowrap">Vadodara</button>
+                <button onclick="fetchWeather('Ahmedabad')" class="px-3 py-1.5 rounded-full transition-all hover:bg-white/10 text-slate-200 hover:text-white whitespace-nowrap">Ahmedabad</button>
+                <button onclick="fetchWeather('Surat')" class="px-3 py-1.5 rounded-full transition-all hover:bg-white/10 text-slate-200 hover:text-white whitespace-nowrap">Surat</button>
+                <button onclick="fetchWeather('Mumbai')" class="px-3 py-1.5 rounded-full transition-all hover:bg-white/10 text-slate-200 hover:text-white whitespace-nowrap">Mumbai</button>
+                <button onclick="fetchWeather('Delhi')" class="px-3 py-1.5 rounded-full transition-all hover:bg-white/10 text-slate-200 hover:text-white whitespace-nowrap">Delhi</button>
+            </div>
+
+            <div class="flex items-center bg-white/5 border border-white/10 p-1 rounded-xl">
+                <button id="unitCBtn" onclick="toggleUnits('C')" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-white/20 text-white shadow transition-all duration-300">°C</button>
+                <button id="unitFBtn" onclick="toggleUnits('F')" class="px-3 py-1.5 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition-all duration-300">°F</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex-1 flex flex-col justify-center py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            <div class="col-span-1 lg:col-span-5 flex flex-col space-y-6 justify-between">
+                <div class="bg-white/5 border border-white/10 rounded-3xl p-5 shadow-2xl backdrop-blur-xl relative overflow-hidden group">
+                    <div class="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
+                    <form id="searchForm" onsubmit="handleSearch(event)" class="relative flex items-center gap-2">
+                        <div class="relative flex-1">
+                            <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+                            <input type="text" id="citySearchInput" placeholder="Enter Indian city name (e.g. Vadodara)..." class="w-full bg-slate-950/40 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 text-sm transition-all shadow-inner">
+                        </div>
+                        <button type="submit" class="bg-white text-slate-950 font-semibold px-5 py-3.5 rounded-2xl text-sm hover:bg-indigo-50 hover:shadow-lg hover:shadow-indigo-500/10 active:scale-95 transition-all flex items-center gap-1.5">
+                            <span>Explore</span>
+                            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        </button>
+                    </form>
+                </div>
+
+                <div class="bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 flex-1 flex flex-col justify-between shadow-2xl backdrop-blur-xl relative overflow-hidden group animate-float min-h-[350px]">
+                    <div class="absolute -right-20 -top-20 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-all duration-700" id="heroAmbientLight"></div>
+                    <div class="flex items-start justify-between relative z-10">
+                        <div>
+                            <div class="flex items-center gap-2 text-indigo-300 text-xs font-semibold tracking-wider uppercase mb-1">
+                                <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+                                <span id="countryLabel">GUJARAT, INDIA</span>
+                            </div>
+                            <h2 id="cityName" class="font-serif text-3xl sm:text-4xl font-bold tracking-wide text-white">Vadodara</h2>
+                            <p id="localTime" class="text-xs text-slate-400 mt-1">Real-time Weather Intelligence</p>
+                        </div>
+                        <div id="heroIconContainer" class="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-amber-400 shadow-lg">
+                            <i data-lucide="sun" class="w-10 h-10 animate-spin-slow"></i>
+                        </div>
+                    </div>
+                    <div class="my-8 relative z-10">
+                        <div class="flex items-baseline">
+                            <span id="heroTemp" class="text-7xl sm:text-8xl font-extrabold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-200">33</span>
+                            <span id="heroUnit" class="text-3xl sm:text-4xl font-light text-indigo-200 ml-1">°C</span>
+                        </div>
+                        <p id="weatherDesc" class="text-lg font-medium text-slate-200 capitalize mt-2 flex items-center gap-2">
+                            <span>Warm & Balmy Sunshine</span>
+                        </p>
+                    </div>
+                    <div class="border-t border-white/10 pt-4 grid grid-cols-2 gap-4 relative z-10 text-xs">
+                        <div>
+                            <span class="text-slate-400 block mb-0.5">Today's Span</span>
+                            <span class="font-medium text-slate-200 flex items-center gap-1">
+                                <i data-lucide="arrow-down-right" class="w-3 h-3 text-emerald-400"></i>
+                                <span id="minTempDisplay">28°C</span>
+                                <span class="text-white/20">|</span>
+                                <i data-lucide="arrow-up-right" class="w-3 h-3 text-rose-400"></i>
+                                <span id="maxTempDisplay">36°C</span>
+                            </span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block mb-0.5">Real-Feel Scale</span>
+                            <span id="feelsLikeDisplay" class="font-medium text-slate-200">Feels like 38°C</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white/5 border border-white/10 rounded-3xl p-5 shadow-2xl backdrop-blur-xl">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+                        <i data-lucide="history" class="w-3.5 h-3.5 text-indigo-400"></i>
+                        <span>Recent Explorations</span>
+                    </h3>
+                    <div id="recentSearchesList" class="flex flex-wrap gap-2"></div>
+                </div>
+            </div>
+
+            <div class="col-span-1 lg:col-span-7 flex flex-col space-y-6">
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div class="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-xl backdrop-blur-xl relative overflow-hidden group">
+                        <div class="absolute top-3 right-3 text-indigo-300 opacity-60 group-hover:scale-110 transition-transform">
+                            <i data-lucide="wind" class="w-5 h-5"></i>
+                        </div>
+                        <span class="text-xs text-slate-400 block">Wind Velocity</span>
+                        <div class="mt-3">
+                            <span id="windSpeed" class="text-2xl font-bold">3.5</span>
+                            <span class="text-xs text-slate-400 ml-1">m/s</span>
+                        </div>
+                        <div class="mt-2 text-[11px] text-slate-400 flex items-center gap-1">
+                            <i data-lucide="compass" class="w-3 h-3"></i>
+                            <span id="windDir">230° Southwest</span>
+                        </div>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-xl backdrop-blur-xl relative overflow-hidden group">
+                        <div class="absolute top-3 right-3 text-indigo-300 opacity-60 group-hover:scale-110 transition-transform">
+                            <i data-lucide="droplet" class="w-5 h-5"></i>
+                        </div>
+                        <span class="text-xs text-slate-400 block">Air Humidity</span>
+                        <div class="mt-3">
+                            <span id="humidity" class="text-2xl font-bold">70</span>
+                            <span class="text-xs text-slate-400 ml-1">%</span>
+                        </div>
+                        <div class="mt-2 w-full bg-slate-950/40 rounded-full h-1.5 overflow-hidden">
+                            <div id="humidityBar" class="bg-gradient-to-r from-blue-400 to-indigo-500 h-1.5 rounded-full transition-all duration-1000" style="width: 70%"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-xl backdrop-blur-xl relative overflow-hidden group">
+                        <div class="absolute top-3 right-3 text-indigo-300 opacity-60 group-hover:scale-110 transition-transform">
+                            <i data-lucide="cloud" class="w-5 h-5"></i>
+                        </div>
+                        <span class="text-xs text-slate-400 block">Cloud Cover</span>
+                        <div class="mt-3">
+                            <span id="cloudPct" class="text-2xl font-bold">40</span>
+                            <span class="text-xs text-slate-400 ml-1">%</span>
+                        </div>
+                        <div class="mt-2 text-[11px] text-slate-400" id="cloudStatus">Partly cloudy skies</div>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-xl backdrop-blur-xl relative overflow-hidden group">
+                        <div class="absolute top-3 right-3 text-amber-300 opacity-60 group-hover:scale-110 transition-transform">
+                            <i data-lucide="sunrise" class="w-5 h-5"></i>
+                        </div>
+                        <span class="text-xs text-slate-400 block">Sunrise</span>
+                        <div class="mt-3">
+                            <span id="sunriseTime" class="text-2xl font-bold">06:05</span>
+                        </div>
+                        <div class="mt-2 text-[11px] text-slate-400 flex items-center gap-1">
+                            <i data-lucide="arrow-up" class="w-3 h-3 text-amber-400"></i>
+                            <span>Morning onset</span>
+                        </div>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-xl backdrop-blur-xl relative overflow-hidden group">
+                        <div class="absolute top-3 right-3 text-purple-300 opacity-60 group-hover:scale-110 transition-transform">
+                            <i data-lucide="sunset" class="w-5 h-5"></i>
+                        </div>
+                        <span class="text-xs text-slate-400 block">Sunset</span>
+                        <div class="mt-3">
+                            <span id="sunsetTime" class="text-2xl font-bold">19:15</span>
+                        </div>
+                        <div class="mt-2 text-[11px] text-slate-400 flex items-center gap-1">
+                            <i data-lucide="arrow-down" class="w-3 h-3 text-purple-400"></i>
+                            <span>Dusk arrival</span>
+                        </div>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-xl backdrop-blur-xl relative overflow-hidden group">
+                        <div class="absolute top-3 right-3 text-indigo-300 opacity-60 group-hover:scale-110 transition-transform">
+                            <i data-lucide="gauge" class="w-5 h-5"></i>
+                        </div>
+                        <span class="text-xs text-slate-400 block">Climate Index</span>
+                        <div class="mt-3">
+                            <span id="climateIndex" class="text-2xl font-bold">Optimal</span>
+                        </div>
+                        <div class="mt-2 text-[11px] text-slate-400">Perfect conditions</div>
+                    </div>
+                </div>
+
+                <div class="bg-white/5 border border-white/10 rounded-3xl p-6 shadow-2xl backdrop-blur-xl flex-1 flex flex-col justify-between relative overflow-hidden">
+                    <div class="absolute -left-12 -bottom-12 w-48 h-48 bg-indigo-500/10 rounded-full blur-2xl"></div>
+                    <div class="relative z-10">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
+                            <i data-lucide="sparkles" class="w-4 h-4 text-indigo-300 animate-pulse"></i>
+                            <span>Aura Smart recommendations</span>
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="bg-slate-900/30 border border-white/5 rounded-2xl p-4 flex items-start gap-3">
+                                <div class="p-2.5 bg-indigo-500/20 text-indigo-300 rounded-xl">
+                                    <i data-lucide="shirt" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-semibold text-white mb-1">Suggested Wear</h4>
+                                    <p id="attireRec" class="text-[11px] text-slate-300 leading-relaxed">Lightweight breathable cotton layers. Keep hydrated.</p>
+                                </div>
+                            </div>
+                            <div class="bg-slate-900/30 border border-white/5 rounded-2xl p-4 flex items-start gap-3">
+                                <div class="p-2.5 bg-amber-500/20 text-amber-300 rounded-xl">
+                                    <i data-lucide="bike" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-semibold text-white mb-1">Outdoors & Activity</h4>
+                                    <p id="activityRec" class="text-[11px] text-slate-300 leading-relaxed">Perfect for early morning runs or late evening walks to beat afternoon heat.</p>
+                                </div>
+                            </div>
+                            <div class="bg-slate-900/30 border border-white/5 rounded-2xl p-4 flex items-start gap-3">
+                                <div class="p-2.5 bg-emerald-500/20 text-emerald-300 rounded-xl">
+                                    <i data-lucide="compass" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-semibold text-white mb-1">Aura Advisory</h4>
+                                    <p id="advisoryRec" class="text-[11px] text-slate-300 leading-relaxed">Stable weather conditions. Keep sunscreen handy.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-6 flex items-center justify-between text-xs text-slate-400 border-t border-white/5 pt-4">
+                        <div class="flex items-center gap-2">
+                            <span class="inline-block w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping"></span>
+                            <span id="dataSourceBadge">Connected to API Ninjas</span>
+                        </div>
+                        <button onclick="toggleVisualizerDetails()" class="hover:text-white transition-colors flex items-center gap-1">
+                            <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                            <span>Environmental Visualizer: On</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-xs text-slate-500 border-t border-white/5 mt-8">
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p>© 2026 AuraWeather. Modern Indian Climate Intelligence Platform.</p>
+            <div class="flex items-center space-x-4">
+                <a href="#" class="hover:text-slate-300 transition-colors">Safety Standards</a>
+                <span>•</span>
+                <a href="#" class="hover:text-slate-300 transition-colors">Privacy Principles</a>
+                <span>•</span>
+                <a href="#" class="hover:text-slate-300 transition-colors">API Ninjas Integrations</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="app.js" defer></script>
+</body>
+</html>
